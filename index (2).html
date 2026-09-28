@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Food Review</title>
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;min-height:100vh;padding:20px;
+  font-family:Arial,sans-serif;
+  background:linear-gradient(135deg,#fff7ed,#f8fafc);
+  display:flex;align-items:center;justify-content:center;color:#1f2937
+}
+.card{
+  width:100%;max-width:600px;background:#fff;border-radius:22px;
+  padding:32px;box-shadow:0 15px 45px rgba(0,0,0,.12)
+}
+.hidden{display:none}
+h1{margin:0 0 10px;font-size:30px}
+h2{font-size:22px;line-height:1.4}
+p{color:#667085;line-height:1.6}
+.progress{height:8px;background:#eee;border-radius:20px;overflow:hidden;margin:10px 0 25px}
+.progress-bar{height:100%;width:0;background:#f97316;transition:.3s}
+.option{
+  display:block;border:2px solid #e5e7eb;border-radius:14px;
+  padding:15px;margin:10px 0;cursor:pointer;transition:.2s
+}
+.option:hover{border-color:#f97316;background:#fff7ed}
+.option input{margin-right:10px}
+textarea{
+  width:100%;min-height:120px;padding:14px;border:2px solid #e5e7eb;
+  border-radius:14px;font:inherit;resize:vertical
+}
+button{
+  width:100%;border:0;border-radius:13px;padding:15px;
+  font-size:16px;font-weight:bold;cursor:pointer;
+  background:#f97316;color:#fff;margin-top:15px
+}
+button:hover{background:#ea580c}
+.small{font-size:13px;color:#98a2b3}
+.center{text-align:center}
+.star-option{font-size:25px}
+.error{color:#b42318;font-size:14px;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="card">
+
+<section id="startScreen">
+  <div style="font-size:52px">🍽️</div>
+  <h1>Food Review</h1>
+  <p>Thank you for trying the food! Please take a minute to share your honest feedback.</p>
+  <button onclick="startReview()">Start Review</button>
+</section>
+
+<section id="formScreen" class="hidden">
+  <div class="progress"><div id="progressBar" class="progress-bar"></div></div>
+  <p id="questionNumber" class="small"></p>
+  <h2 id="questionText"></h2>
+  <div id="answerArea"></div>
+  <div id="error" class="error"></div>
+  <button onclick="nextQuestion()">Next</button>
+</section>
+
+<section id="thankYouScreen" class="hidden center">
+  <div style="font-size:60px">🙏</div>
+  <h1>Thank You!</h1>
+  <p>Your feedback has been submitted successfully.</p>
+</section>
+
+</div>
+
+<script>
+/*
+IMPORTANT:
+After creating your Google Apps Script Web App, paste its /exec URL below.
+Example:
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/XXXXXXXX/exec";
+*/
+const GOOGLE_SCRIPT_URL = "PASTE_YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE";
+
+const questions = [
+  {
+    id:"overall",
+    text:"Overall, how did you like the food?",
+    type:"choice",
+    options:["😍 Excellent","🙂 Good","😐 Average","😕 Not good"]
+  },
+  {
+    id:"taste",
+    text:"How was the taste?",
+    type:"choice",
+    options:["😍 Excellent","🙂 Good","😐 Average","😕 Poor"]
+  },
+  {
+    id:"presentation",
+    text:"How was the presentation?",
+    type:"stars",
+    options:["⭐","⭐⭐","⭐⭐⭐","⭐⭐⭐⭐","⭐⭐⭐⭐⭐"]
+  },
+  {
+    id:"quantity",
+    text:"Was the quantity sufficient?",
+    type:"choice",
+    options:["Yes","It was okay","No"]
+  },
+  {
+    id:"favorite",
+    text:"What did you like the most?",
+    type:"choice",
+    options:["Taste","Presentation","Variety","Everything","Nothing in particular"]
+  },
+  {
+    id:"improve",
+    text:"What could be improved next time?",
+    type:"text",
+    placeholder:"Write your feedback here..."
+  },
+  {
+    id:"again",
+    text:"Would you like to have this food again?",
+    type:"choice",
+    options:["Definitely!","Maybe","No"]
+  },
+  {
+    id:"other",
+    text:"Any other feedback?",
+    type:"text",
+    placeholder:"Optional"
+  }
+];
+
+let current=0;
+const answers={};
+
+function startReview(){
+  current=0;
+  for(const key in answers) delete answers[key];
+  document.getElementById("startScreen").classList.add("hidden");
+  document.getElementById("thankYouScreen").classList.add("hidden");
+  document.getElementById("formScreen").classList.remove("hidden");
+  showQuestion();
+}
+
+function showQuestion(){
+  const q=questions[current];
+  document.getElementById("questionNumber").textContent=
+    `Question ${current+1} of ${questions.length}`;
+  document.getElementById("questionText").textContent=q.text;
+  document.getElementById("error").textContent="";
+  const area=document.getElementById("answerArea");
+  area.innerHTML="";
+
+  if(q.type==="text"){
+    area.innerHTML=`<textarea id="textAnswer" placeholder="${q.placeholder}"></textarea>`;
+  }else{
+    q.options.forEach((opt,i)=>{
+      const label=document.createElement("label");
+      label.className="option"+(q.type==="stars"?" star-option":"");
+      label.innerHTML=
+        `<input type="radio" name="answer" value="${escapeHtml(opt)}"> ${escapeHtml(opt)}`;
+      area.appendChild(label);
+    });
+  }
+
+  document.getElementById("progressBar").style.width=
+    `${(current/questions.length)*100}%`;
+}
+
+function escapeHtml(value){
+  return value.replace(/[&<>"']/g,m=>({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+  }[m]));
+}
+
+function nextQuestion(){
+  const q=questions[current];
+  let answer="";
+
+  if(q.type==="text"){
+    answer=document.getElementById("textAnswer").value.trim();
+    if(q.id!=="other" && !answer){
+      document.getElementById("error").textContent="Please enter your answer.";
+      return;
+    }
+  }else{
+    const selected=document.querySelector('input[name="answer"]:checked');
+    if(!selected){
+      document.getElementById("error").textContent="Please select an answer.";
+      return;
+    }
+    answer=selected.value;
+  }
+
+  answers[q.id]=answer;
+  current++;
+
+  if(current<questions.length){
+    showQuestion();
+  }else{
+    submitReview();
+  }
+}
+
+async function submitReview(){
+  document.getElementById("formScreen").classList.add("hidden");
+  document.getElementById("thankYouScreen").classList.remove("hidden");
+
+  if(GOOGLE_SCRIPT_URL.includes("PASTE_YOUR_")){
+    console.warn("Google Apps Script URL has not been added yet.",answers);
+    return;
+  }
+
+  const payload={
+    submittedAt:new Date().toISOString(),
+    ...answers
+  };
+
+  try{
+    await fetch(GOOGLE_SCRIPT_URL,{
+      method:"POST",
+      mode:"no-cors",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify(payload)
+    });
+  }catch(error){
+    console.error("Could not submit response:",error);
+  }
+}
+</script>
+</body>
+</html>
